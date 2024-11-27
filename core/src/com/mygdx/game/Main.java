@@ -1,47 +1,34 @@
-
 package com.mygdx.game;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.bullet.collision._btMprSimplex_t;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
-
 import java.util.HashMap;
-
 import java.util.*;
-
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
-import jdk.nashorn.internal.parser.JSONParser;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 
 public class Main extends ApplicationAdapter {
 
-	private final float UPDATE_TIME = 1/120f;
+	private final float UPDATE_TIME = 1 / 120f;
 	float timer;
 
 	Scanner s = new Scanner(System.in);
@@ -86,7 +73,6 @@ public class Main extends ApplicationAdapter {
 	Boolean clicked = false;
 
 
-
 	@Override
 	public void create() {
 
@@ -94,9 +80,8 @@ public class Main extends ApplicationAdapter {
 		Gdx.input.setInputProcessor(stage);
 
 
-		sr= new ShapeRenderer();
-		connectSocket();
-		configSocketEvents();
+		sr = new ShapeRenderer();
+
 		players = new HashMap<String, Player>();
 		cueballs = new HashMap<String, Ball>();
 		ballSets = new HashMap<String, Ball[]>();
@@ -106,15 +91,15 @@ public class Main extends ApplicationAdapter {
 		music = Gdx.audio.newSound((Gdx.files.internal("BackgroundMusic.mp3")));
 		ambiance = Gdx.audio.newSound((Gdx.files.internal("AmbientPub.mp3")));
 
-		music.loop();
+		music.loop(0.01f);
 
 
-		ambiance.loop(1f);
+		ambiance.loop(0.01f);
 
 
 		// start of buttons
 
-		skin = new Skin(Gdx.files.internal("metalui/metal-ui.json"));
+		skin = new Skin(Gdx.files.internal("metal-ui.json"));
 
 		stage = new Stage(new ScreenViewport());
 		Gdx.input.setInputProcessor(stage);
@@ -134,9 +119,15 @@ public class Main extends ApplicationAdapter {
 
 		root.row();
 		root.defaults().reset();
-		TextField codeInput = new TextField("", skin);
-		root.add(codeInput).spaceBottom(50).width(200).height(25);
+		TextField ipInput = new TextField("", skin);
+		ipInput.setMessageText("IP");
+		root.add(ipInput).spaceBottom(25).width(200).height(25);
 
+		root.row();
+		root.defaults().reset();
+		TextField codeInput = new TextField("", skin);
+		codeInput.setMessageText("Code");
+		root.add(codeInput).spaceBottom(50).width(200).height(25);
 
 		root.row();
 		root.defaults().reset();
@@ -144,24 +135,22 @@ public class Main extends ApplicationAdapter {
 		root.add(rules).spaceBottom(50).width(750).height(100);
 
 
-
-
-		create.addListener(new ClickListener(){
-			public void clicked(InputEvent event, float x, float y){
+		create.addListener(new ClickListener() {
+			public void clicked(InputEvent event, float x, float y) {
 				clicked = true;
+				createSocket(ipInput.getText());
 				createGame();
 
 			}
 		});
 
-		join.addListener(new ClickListener(){
-			public void clicked(InputEvent event, float x, float y){
+		join.addListener(new ClickListener() {
+			public void clicked(InputEvent event, float x, float y) {
 				clicked = true;
+				createSocket(ipInput.getText());
 				joinGame(codeInput.getText());
 			}
 		});
-
-
 
 
 		//end of buttons
@@ -178,10 +167,7 @@ public class Main extends ApplicationAdapter {
 		table = new PoolTable(200, 175, 1100, 550, Color.GREEN);
 
 
-
-
 		reboundLine = new ShotLine(0, 0, 0, 0, 3, Color.BLUE);
-
 
 
 		initialisePockets(table, pockets);
@@ -213,8 +199,6 @@ public class Main extends ApplicationAdapter {
 		 */
 
 
-
-
 	}
 
 	@Override
@@ -230,8 +214,7 @@ public class Main extends ApplicationAdapter {
 		sr.begin(ShapeRenderer.ShapeType.Filled);
 
 
-
-		if(clicked) {
+		if (clicked) {
 			table.draw(sr);
 
 			if (player != null) {
@@ -281,8 +264,6 @@ public class Main extends ApplicationAdapter {
 
 		}
 		sr.end();
-
-
 
 
 	}
@@ -335,7 +316,7 @@ public class Main extends ApplicationAdapter {
 
 		for (int i = 0; i < 15; i++) {
 
-			if(balls[i] != null) {
+			if (balls[i] != null) {
 
 				balls[i].setY((balls[i].getY() + balls[i].getyVel()));
 				balls[i].setX((balls[i].getX() + balls[i].getxVel()));
@@ -567,17 +548,15 @@ public class Main extends ApplicationAdapter {
 	 */
 
 
-
-
 	public boolean checkBallsStationary() {
-		for(int i = 0; i < balls.length; i++){
+		for (int i = 0; i < balls.length; i++){
 			if(balls[i] != null) {
 				if (balls[i].getxVel() > 0 || balls[i].getyVel() > 0) {
 					return false;
 				}
 			}
 		}
-		if(cueBall.getyVel() > 0 || cueBall.getxVel() > 0){
+		if (cueBall.getyVel() > 0 || cueBall.getxVel() > 0){
 			return false;
 		}
 
@@ -738,35 +717,30 @@ public class Main extends ApplicationAdapter {
 	 */
 
 
-	public void initialisePockets(PoolTable table, Pocket[] pockets){
+	public void initialisePockets(PoolTable table, Pocket[] pockets) {
 		float x = table.getX();
 		float row1y = table.getY();
 
 		float row2y = row1y + table.getH();
 
-		for(int i = 0; i< 3; i++){
+		for (int i = 0; i < 3; i++) {
 			pockets[i] = new Pocket(x, row1y, 17, Color.BLACK);
-			x+= (table.getW()/2);
+			x += (table.getW() / 2);
 		}
 
 		float x2 = table.getX();
 
-		for(int i = 3; i < 6; i++){
+		for (int i = 3; i < 6; i++) {
 			pockets[i] = new Pocket(x2, row2y, 17, Color.BLACK);
-			x2+= (table.getW()/2);
+			x2 += (table.getW() / 2);
 		}
 	}
 
 
-
-
-
-
-
 	public void handleInput(float dt) {
 		if (player != null) {
-			float playerWidth = player.getR()*2;
-			float playerHeight = player.getR()*2;
+			float playerWidth = player.getR() * 2;
+			float playerHeight = player.getR() * 2;
 
 			float rectX = 225;
 			float rectY = 200;
@@ -820,11 +794,10 @@ public class Main extends ApplicationAdapter {
 
 			// Place balls in the current row
 			for (int i = 0; i <= row; i++) {
-				if(ballIndex % 2 == 0) {
+				if (ballIndex % 2 == 0) {
 					balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.YELLOW);
 					ballIndex++;
-				}
-				else{
+				} else {
 					balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.RED);
 					ballIndex++;
 				}
@@ -832,10 +805,15 @@ public class Main extends ApplicationAdapter {
 		}
 	}
 
+	public void createSocket(String ip) {
+		if (ip.isEmpty()) ip = "localhost";
+		connectSocket(ip);
+		configSocketEvents();
+	}
 
-	public void connectSocket() {
+	public void connectSocket(String ip) {
 		try {
-			socket = IO.socket("http://localhost:8080");
+			socket = IO.socket("http://" + ip + ":8080"); // http://localhost:8080
 			socket.connect();
 		} catch (Exception e) {
 			System.out.println(e);
@@ -884,7 +862,7 @@ public class Main extends ApplicationAdapter {
 				}catch(Exception e){
 					Gdx.app.log("SocketIO", "Error getting New cueballId");
 				}
-				
+
 			}
 		}).on("playerDisconnected", new Emitter.Listener() {
 			@Override
@@ -927,7 +905,7 @@ public class Main extends ApplicationAdapter {
 					}
 				}catch (JSONException e) {
 				}
-						
+
 			}
 		}).on("getPlayers", new Emitter.Listener() {
 			@Override

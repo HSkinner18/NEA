@@ -7,10 +7,13 @@ server.listen(8080, function(){
     console.log("Server is now running...");
 });
 
+app.get('/', (req, res) => {
+  res.send('<h1>Pool Server</h1>');
+});
+
 io.on('connection', function(socket){
     console.log("Player Connected!");
-   
-   
+
     socket.on('playerMoved', function(data) {
     let roomCode = data.roomCode;
     data.id = socket.id;  // Ensure the data contains the correct player ID
