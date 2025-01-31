@@ -4,44 +4,34 @@ package com.mygdx.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.bullet.collision._btMprSimplex_t;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.InputListener;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.ScreenUtils;
-
-import java.util.HashMap;
-
-import java.util.*;
-
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
-import jdk.nashorn.internal.parser.JSONParser;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.Stage;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Scanner;
 
 public class Main extends ApplicationAdapter {
 
-	private final float UPDATE_TIME = 1/120f;
+	private final float UPDATE_TIME = 1 / 120f;
 	float timer;
 
 	Scanner s = new Scanner(System.in);
@@ -74,9 +64,7 @@ public class Main extends ApplicationAdapter {
 
 
 	ShotLine reboundLine;
-	Player player1;
 
-	Player player2;
 
 	Stage stage;
 
@@ -85,6 +73,7 @@ public class Main extends ApplicationAdapter {
 
 	Boolean clicked = false;
 
+	ShotLine shotLine = new ShotLine(0, 0, 0, 0, 3, Color.BLUE);
 
 
 	@Override
@@ -94,7 +83,7 @@ public class Main extends ApplicationAdapter {
 		Gdx.input.setInputProcessor(stage);
 
 
-		sr= new ShapeRenderer();
+		sr = new ShapeRenderer();
 		connectSocket();
 		configSocketEvents();
 		players = new HashMap<String, Player>();
@@ -144,33 +133,27 @@ public class Main extends ApplicationAdapter {
 		root.add(rules).spaceBottom(50).width(750).height(100);
 
 
-
-
-		create.addListener(new ClickListener(){
-			public void clicked(InputEvent event, float x, float y){
+		create.addListener(new ClickListener() {
+			public void clicked(InputEvent event, float x, float y) {
 				clicked = true;
 				createGame();
+				create.remove();
 
 			}
 		});
 
-		join.addListener(new ClickListener(){
-			public void clicked(InputEvent event, float x, float y){
-				clicked = true;
+		join.addListener(new ClickListener() {
+			public void clicked(InputEvent event, float x, float y) {
 				joinGame(codeInput.getText());
+					clicked = true;
+					join.remove();
 			}
 		});
-
-
 
 
 		//end of buttons
 
-		int row1x = 45;
-		int row1Y = 45;
-		int row2Y = 270;
-		int row3Y = row2Y + (row2Y - row1Y);
-		int row4Y = row3Y + (row2Y - row1Y);
+
 
 
 		sr = new ShapeRenderer();
@@ -178,41 +161,11 @@ public class Main extends ApplicationAdapter {
 		table = new PoolTable(200, 175, 1100, 550, Color.GREEN);
 
 
-
-
 		reboundLine = new ShotLine(0, 0, 0, 0, 3, Color.BLUE);
-
 
 
 		initialisePockets(table, pockets);
 		initialiseBalls();
-
-
-		/*int Help_Guides = 12;
-		int row_height = Gdx.graphics.getWidth() / 12;
-		int col_width = Gdx.graphics.getWidth() / 12;
-
-		Skin mySkin = new Skin(Gdx.files.internal(""));
-
-		TextButton button2 = new TextButton("Text Button", mySkin, "small");
-		button2.setSize(col_width*4, row_height);
-		button2.setPosition(col_width*7,Gdx.graphics.getHeight()-row_height*3);
-		button2.addListener(new InputListener(){
-			@Override
-			public void touchUp (InputEvent event, float x, float y, int pointer, int button) {
-				outputLabel.setText("Press a Button");
-			}
-			@Override
-			public boolean touchDown (InputEvent event, float x, float y, int pointer, int button) {
-				outputLabel.setText("Pressed Text Button");
-				return true;
-			}
-		});
-		stage.addActor(button2);
-
-		 */
-
-
 
 
 	}
@@ -223,15 +176,14 @@ public class Main extends ApplicationAdapter {
 		ScreenUtils.clear(0, 0, 0, 1);
 		handleInput(Gdx.graphics.getDeltaTime());
 		updateServer(Gdx.graphics.getDeltaTime());
-		stage.act();
+
 		stage.draw();
 
 
 		sr.begin(ShapeRenderer.ShapeType.Filled);
 
 
-
-		if(clicked) {
+		if (clicked) {
 			table.draw(sr);
 
 			if (player != null) {
@@ -265,8 +217,14 @@ public class Main extends ApplicationAdapter {
 			tableEdgeCollision();
 			CueballMovement();
 			Shot();
+			shotPredictor();
 
-			//potBall();
+			if (checkBallsStationary()) {
+				shotLine.draw(sr);
+				reboundLine.draw(sr);
+			}
+
+			potBall();
 
 
 			for (Ball pocketedBall : pocketedBalls) {
@@ -277,17 +235,12 @@ public class Main extends ApplicationAdapter {
 			}
 
 			cursor.draw(sr);
-			reboundLine.draw(sr);
 
 		}
 		sr.end();
 
 
-
-
 	}
-
-
 
 
 	public boolean checkBallCollision(Ball ball1, Ball ball2) {
@@ -306,10 +259,10 @@ public class Main extends ApplicationAdapter {
 
 
 			if (cueBall.getxVel() != 0) {
-				cueBall.setxVel(cueBall.getxVel() * 0.98f);
+				cueBall.setxVel(cueBall.getxVel() * 0.99f);
 			}
 			if (cueBall.getyVel() != 0) {
-				cueBall.setyVel(cueBall.getyVel() * 0.98f);
+				cueBall.setyVel(cueBall.getyVel() * 0.99f);
 			}
 
 
@@ -335,7 +288,7 @@ public class Main extends ApplicationAdapter {
 
 		for (int i = 0; i < 15; i++) {
 
-			if(balls[i] != null) {
+			if (balls[i] != null) {
 
 				balls[i].setY((balls[i].getY() + balls[i].getyVel()));
 				balls[i].setX((balls[i].getX() + balls[i].getxVel()));
@@ -414,7 +367,7 @@ public class Main extends ApplicationAdapter {
 
 
 						float dotProduct = relativeVelX * collisionNormalX + relativeVelY * collisionNormalY;
-						float impulse = dotProduct; // Assuming same mass for both balls
+						float impulse = dotProduct;
 
 						balls[i].setxVel(balls[i].getxVel() + impulse * collisionNormalX);
 						balls[i].setyVel(balls[i].getyVel() + impulse * collisionNormalY);
@@ -547,10 +500,12 @@ public class Main extends ApplicationAdapter {
 
 
 
-	/*public void potBall() {
+
+
+	public void potBall() {
 		for (int i = 0; i < 6; i++) {
 			for (int j = 0; j < 15; j++) {
-				if (checkPocketCollision(table.gettablepockets[i], balls[j])) {
+				if (checkPocketCollision(pockets[i], balls[j])) {
 					pocketedBalls.add(balls[j]);
 				}
 			}
@@ -562,211 +517,154 @@ public class Main extends ApplicationAdapter {
 			}
 		}
 
+
+
 	}
 
-	 */
 
 
 
 
 	public boolean checkBallsStationary() {
-		for(int i = 0; i < balls.length; i++){
-			if(balls[i] != null) {
+		for (int i = 0; i < balls.length; i++) {
+			if (balls[i] != null) {
 				if (balls[i].getxVel() > 0 || balls[i].getyVel() > 0) {
 					return false;
 				}
 			}
 		}
-		if(cueBall.getyVel() > 0 || cueBall.getxVel() > 0){
+		if (cueBall.getyVel() > 0 || cueBall.getxVel() > 0) {
 			return false;
-		}
-
-		else {
+		} else {
 
 			return true;
 		}
 
 	}
 
-	/*public void shotPredictor() {
-		float cueBallX = cueBall.getX();
-		float cueBallY = cueBall.getY();
-		float cursorX = cursor.getX();
-		float cursorY = cursor.getY();
+	public void shotPredictor() {
+
+		if (checkBallsStationary()) {
+			float cueBallX = cueBall.getX();
+			float cueBallY = cueBall.getY();
+			float cursorX = cursor.getX();
+			float cursorY = cursor.getY();
 
 
-		float gradLine = (cursorY - cueBallY) / (cursorX - cueBallX);
+			float gradLine = (cursorY - cueBallY) / (cursorX - cueBallX);
 
 
-		float C = cueBallY - gradLine * cueBallX;
+			float C = cueBallY - gradLine * cueBallX;
 
 
-		float topY = table.getY() + table.getH();
-		float topX = (topY - C) / gradLine;
+			float topY = table.getY() + table.getH();
+			float topX = (topY - C) / gradLine;
 
 
-		float bottomY = table.getY();
-		float bottomX = (bottomY - C) / gradLine;
+			float bottomY = table.getY();
+			float bottomX = (bottomY - C) / gradLine;
 
-		float leftX = table.getX();
-		float leftY = (leftX * gradLine) + C;
+			float leftX = table.getX();
+			float leftY = (leftX * gradLine) + C;
 
-		float rightX = table.getX() + table.getW();
-		float rightY = (rightX * gradLine) + C;
+			float rightX = table.getX() + table.getW();
+			float rightY = (rightX * gradLine) + C;
 
 
-		/*if (cueBallY > cursorY) {
-			shotLine.setX2(topX);
-			shotLine.setY2(topY);
+			if (cueBallY > cursorY) {
+				shotLine.setX2(topX + cueBall.getR());
+				shotLine.setY2(topY);
 
-		} else {
-			shotLine.setX2(bottomX);
-			shotLine.setY2(bottomY);
+			} else {
+				shotLine.setX2(bottomX);
+				shotLine.setY2(bottomY);
+			}
+
+
+			if (cueBallY > cursorY) {
+				if (topX < rightX || topX > leftX) {
+					reboundLine.setX2(topX + (topX - cueBallX));
+					reboundLine.setY2(cueBallY);
+					reboundLine.setX1(topX);
+					reboundLine.setY1(topY);
+
+				}
+
+
+			}
+
+
+			if (cueBallX > cursorX) {
+				shotLine.setX2(rightX);
+				shotLine.setY2(rightY);
+
+				if (rightY < topY || rightY > bottomY) {
+					reboundLine.setX2(cueBallX);
+					reboundLine.setY2(rightY + (rightY - cueBallY));
+					reboundLine.setX1(rightX);
+					reboundLine.setY1(rightY);
+				}
+
+			} else {
+				shotLine.setX2(leftX);
+				shotLine.setY2(leftY);
+
+				if (leftY < bottomY || leftY > bottomY) {
+					reboundLine.setX2(cueBallX);
+					reboundLine.setY2(leftY + (leftY - cueBallY));
+					reboundLine.setX1(leftX);
+					reboundLine.setY1(leftY);
+				}
+			}
+
+			shotLine.setX1(cueBallX);
+			shotLine.setY1(cueBallY);
+
+			if (cueBallY > cursorY) {
+				if (topX < rightX || topX > leftX) {
+					reboundLine.setX2(topX + (topX - cueBallX));
+					reboundLine.setY2(cueBallY);
+					reboundLine.setX1(topX);
+					reboundLine.setY1(topY);
+				}
+
+
+			} else {
+				if (bottomX < rightX || bottomX > leftX) {
+					reboundLine.setX2(bottomX + (bottomX - cueBallX));
+					reboundLine.setY2(cueBallY);
+					reboundLine.setX1(bottomX);
+					reboundLine.setY1(bottomY);
+				}
+			}
 		}
-
-
-
-
-		if (cueBallY > cursorY) {
-			if (topX < rightX || topX > leftX) {
-				reboundLine.setX2(topX + (topX - cueBallX));
-				reboundLine.setY2(cueBallY);
-				reboundLine.setX1(topX);
-				reboundLine.setY1(topY);
-			}
-
-
-		}
-
-
-		if (cueBallX > cursorX) {
-			shotLine.setX2(rightX);
-			shotLine.setY2(rightY);
-
-			if (rightY < topY || rightY > bottomY) {
-				reboundLine.setX2(cueBallX);
-				reboundLine.setY2(rightY + (rightY - cueBallY));
-				reboundLine.setX1(rightX);
-				reboundLine.setY1(rightY);
-			}
-
-		} else {
-			shotLine.setX2(leftX);
-			shotLine.setY2(leftY);
-
-			if (leftY < bottomY || leftY > bottomY) {
-				reboundLine.setX2(cueBallX);
-				reboundLine.setY2(leftY + (leftY - cueBallY));
-				reboundLine.setX1(leftX);
-				reboundLine.setY1(leftY);
-			}
-		}
-
-		shotLine.setX1(cueBallX);
-		shotLine.setY1(cueBallY);
-
-		if (cueBallY > cursorY) {
-			if (topX < rightX || topX > leftX) {
-				reboundLine.setX2(topX + (topX - cueBallX));
-				reboundLine.setY2(cueBallY);
-				reboundLine.setX1(topX);
-				reboundLine.setY1(topY);
-			}
-
-
-		} else {
-			if (bottomX < rightX || bottomX > leftX) {
-				reboundLine.setX2(bottomX + (bottomX - cueBallX));
-				reboundLine.setY2(cueBallY);
-				reboundLine.setX1(bottomX);
-				reboundLine.setY1(bottomY);
-			}
-		}
-
-
-
 	}
 
 
-
-
-	//policy
-
-	public float getDistance(Ball ball1, Ball ball2) {
-		float dx = ball1.getX() - ball2.getX();
-		float dy = ball1.getY() - ball2.getY();
-		float distance = (float) Math.sqrt((dx * dx) + (dy * dy));
-		return distance;
-	}
-
-
-
-
-
-
-
-	public void initializeBallsForTable(Table table, Ball[] balls) {
-		int baseX = (int) (table.getX() + (table.getW() * 0.75)); // Base X coordinate for the triangle
-		int baseX2 = (int) (table.getX() + (table.getW() * 0.25));
-		int baseY = (int) (table.getY() + table.getH() / 2);      // Base Y coordinate for the first ball
-
-		// Distance between balls (adjust as necessary)
-		float ballRadius = 6.75f;
-		float ballDiameter = ballRadius * 2;
-		double rowHeight = ballDiameter * Math.sqrt(3) / 2;
-
-		int ballIndex = 0;
-
-		for (int row = 0; row < 5; row++) {
-			for (int col = 0; col <= row; col++) {
-				float x = baseX + row * ballDiameter;
-				float y = baseY + col * ballDiameter - row * ballDiameter / 2;
-
-				Color color = (ballIndex % 2 == 0) ? Color.YELLOW : Color.RED;
-				balls[ballIndex] = new Ball(x, y, ballRadius, 0, 0, false, color);
-				ballIndex++;
-			}
-		}
-
-		// Assign specific colors to certain balls if needed
-		balls[0].setCol(Color.RED);    // Example: set first ball color
-		balls[7].setCol(Color.BLACK);  // Example: set 8-ball color
-
-	}
-
-
-	 */
-
-
-	public void initialisePockets(PoolTable table, Pocket[] pockets){
+	public void initialisePockets(PoolTable table, Pocket[] pockets) {
 		float x = table.getX();
 		float row1y = table.getY();
 
 		float row2y = row1y + table.getH();
 
-		for(int i = 0; i< 3; i++){
-			pockets[i] = new Pocket(x, row1y, 17, Color.BLACK);
-			x+= (table.getW()/2);
+		for (int i = 0; i < 3; i++) {
+			pockets[i] = new Pocket(x, row1y, 20, Color.BLACK);
+			x += (table.getW() / 2);
 		}
 
 		float x2 = table.getX();
 
-		for(int i = 3; i < 6; i++){
+		for (int i = 3; i < 6; i++) {
 			pockets[i] = new Pocket(x2, row2y, 17, Color.BLACK);
-			x2+= (table.getW()/2);
+			x2 += (table.getW() / 2);
 		}
 	}
 
 
-
-
-
-
-
 	public void handleInput(float dt) {
 		if (player != null) {
-			float playerWidth = player.getR()*2;
-			float playerHeight = player.getR()*2;
+			float playerWidth = player.getR() * 2;
+			float playerHeight = player.getR() * 2;
 
 			float rectX = 225;
 			float rectY = 200;
@@ -799,32 +697,27 @@ public class Main extends ApplicationAdapter {
 
 	public void initialiseBalls() {
 
-		balls = new Ball[15];  // Assuming standard 15-ball pool
+		balls = new Ball[15];
 
-		// Define the starting position for the triangle (for the apex ball)
-		float startX = table.getX() + table.getW() * 0.75f;  // 3/4th of the table width
-		float startY = table.getY() + (float) table.getH() / 2;     // Middle of the table height
+		float startX = table.getX() + table.getW() * 0.75f;
+		float startY = table.getY() + (float) table.getH() / 2;
 
-		float ballRadius = 15f;  // Assuming the radius of each ball is 10
-		float rowSpacing = (float) (ballRadius * Math.sqrt(3));  // Vertical distance between rows
+		float ballRadius = 15f;
+		float rowSpacing = (float) (ballRadius * Math.sqrt(3));
 
 		int ballIndex = 0;
 
-		// Place balls row by row in a triangle shape
 		for (int row = 0; row < 5; row++) {
-			// Calculate X position for each row, with balls shifting left by half a ball each row
-			float rowX = startX - row * ballRadius;
+			float rowX = startX + row * ballRadius;
 
-			// Calculate Y position for the first ball in the row
 			float rowY = startY - (row * rowSpacing / 2);
 
-			// Place balls in the current row
+
 			for (int i = 0; i <= row; i++) {
-				if(ballIndex % 2 == 0) {
+				if (ballIndex % 2 == 0) {
 					balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.YELLOW);
 					ballIndex++;
-				}
-				else{
+				} else {
 					balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.RED);
 					ballIndex++;
 				}
@@ -843,6 +736,7 @@ public class Main extends ApplicationAdapter {
 	}
 
 	public void configSocketEvents() {
+
 		socket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
@@ -857,7 +751,10 @@ public class Main extends ApplicationAdapter {
 				JSONObject data = (JSONObject) args[0];
 				try {
 					playerId = data.getString("id");
+					cueballId = ("cueball");
 					Gdx.app.log("SocketIO", "My ID: " + playerId);
+					players.put(playerId, player);
+					cueballs.put(cueballId, cueBall);
 				} catch (JSONException e) {
 					Gdx.app.log("SocketIO", "Error getting ID");
 				}
@@ -869,22 +766,13 @@ public class Main extends ApplicationAdapter {
 				try {
 					String playerId = data.getString("id");
 					Gdx.app.log("SocketIO", "New Player Connect: " + playerId);
-					players.put(playerId, new Player(0, 0, 50, 0, 0, Color.CORAL));
+
+					if(!(players.containsValue(playerId))) {
+						players.put(playerId, new Player(0, 0, 50, 0, 0, Color.CORAL));
+					}
 				} catch (JSONException e) {
 					Gdx.app.log("SocketIO", "Error getting New PlayerID");
 				}
-			}
-		}).on("newCueBall", new Emitter.Listener() {
-			@Override
-			public void call(Object... args) {
-				JSONObject data = (JSONObject) args[0];
-				try{
-					String cueballId = data.getString("id");
-					cueballs.put(cueballId, new Ball(300, 500, 50, 0, 0, false ,Color.WHITE));
-				}catch(Exception e){
-					Gdx.app.log("SocketIO", "Error getting New cueballId");
-				}
-				
 			}
 		}).on("playerDisconnected", new Emitter.Listener() {
 			@Override
@@ -913,22 +801,6 @@ public class Main extends ApplicationAdapter {
 				} catch (JSONException e) {
 				}
 			}
-		}).on("cueballMoved", new Emitter.Listener() {
-			@Override
-			public void call(Object... args) {
-				JSONObject data = (JSONObject) args[0];
-				try{
-					String cueballId = data.getString("id");
-					Double x = data.getDouble("x");
-					Double y = data.getDouble("y");
-					if (cueballs.get(cueballId) != null) {
-						cueballs.get(cueballId).setX(x.floatValue());
-						cueballs.get(cueballId).setY(y.floatValue());
-					}
-				}catch (JSONException e) {
-				}
-						
-			}
 		}).on("getPlayers", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
@@ -942,27 +814,54 @@ public class Main extends ApplicationAdapter {
 						coopPlayer.setX(position.x);
 						coopPlayer.setY(position.y);
 
-						players.put(objects.getJSONObject(i).getString("id"), coopPlayer);
+						if(!(players.containsValue(playerId))) {
+							players.put(objects.getJSONObject(i).getString("id"), coopPlayer);
+						}
 					}
 				} catch (JSONException e) {
+				}
+			}
+		}).on("cueballMoved", new Emitter.Listener() {
+			@Override
+			public void call(Object... args) {
+
+				System.out.println("sendCueballMoved() function was called!");
+				JSONObject cueballData = (JSONObject) args[0];
+				try {
+					String cueballId = cueballData.getString("id");
+					Double x = cueballData.getDouble("x");
+					Double y = cueballData.getDouble("y");
+
+					if (cueballs.containsKey(cueballId)) {
+						cueBall.setX(x.floatValue());
+						cueBall.setY(y.floatValue());
+					} else {
+						System.out.println("Cueball with ID " + cueballId + " not found!");
+					}
+
+
+					System.out.println("Received cueballMoved: " + cueballData.toString());
+
+
+				} catch (JSONException e) {
+					System.err.println("Error parsing cueballMoved data: " + e.getMessage());
 				}
 			}
 		}).on("getCueballs", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
-				JSONArray objects = (JSONArray) args[0];
+				JSONObject data = (JSONObject) args[0];
 				try {
-					for (int i = 0; i < objects.length(); i++) {
-						Ball coopCueball = new Ball(0, 0, 50, 0, 0, false ,Color.CORAL);
-						Vector2 position = new Vector2();
-						position.x = ((Double) objects.getJSONObject(i).getDouble("x")).floatValue();
-						position.y = ((Double) objects.getJSONObject(i).getDouble("y")).floatValue();
-						coopCueball.setX(position.x);
-						coopCueball.setY(position.y);
+					for (int i = 0; i < data.length(); i++) {
 
-						cueballs.put(objects.getJSONObject(i).getString("id"), coopCueball);
+						double x = data.getDouble("x");
+						double y = data.getDouble("y");
+
+						cueBall.setX((float) x);
+						cueBall.setY((float) y);
 					}
 				} catch (JSONException e) {
+					Gdx.app.log("SocketIO", "Error fetching cueballs");
 				}
 			}
 		});
@@ -972,7 +871,7 @@ public class Main extends ApplicationAdapter {
 		socket.emit("createGame", new Ack() {
 			@Override
 			public void call(Object... args) {
-				String newRoomCode = (String) args[0]; // Server returns the room code
+				String newRoomCode = (String) args[0];
 				roomCode = newRoomCode;
 				Gdx.app.log("SocketIO", "Room created with code: " + roomCode);
 			}
@@ -988,8 +887,11 @@ public class Main extends ApplicationAdapter {
 					if (response.getBoolean("success")) {
 						roomCode = code;
 						Gdx.app.log("SocketIO", "Successfully joined room: " + roomCode);
+
 						socket.emit("getPlayers", roomCode);
-						socket.emit("getCueballs", roomCode); // Request cue balls as well
+
+						socket.emit("getCueballs", roomCode);
+
 					} else {
 						Gdx.app.log("SocketIO", "Failed to join room: " + response.getString("message"));
 					}
@@ -1002,26 +904,39 @@ public class Main extends ApplicationAdapter {
 
 	public void updateServer(float dt) {
 		timer += dt;
-		if (timer > UPDATE_TIME && player != null && player.hasMoved()) {
-			JSONObject playerData = new JSONObject();
-			JSONObject cueBallData = new JSONObject();
-			try {
-				// Send player movement data
-				playerData.put("x", player.getX());
-				playerData.put("y", player.getY());
-				playerData.put("roomCode", roomCode); // Include room code for scoping the data
-				socket.emit("playerMoved", playerData);
 
-				cueBallData.put("x", cueBall.getX());
-				cueBallData.put("y", cueBall.getY());
-				cueBallData.put("roomCode", roomCode); // Include room code for scoping the data
-				socket.emit("cueballMoved", cueBallData); // Emit cueballMoved for cue ball data
+		if (timer > UPDATE_TIME) {
+			JSONObject playerData = new JSONObject();
+			JSONObject cueballData = new JSONObject();
+
+			try {
+
+				if (player != null && player.hasMoved()) {
+					playerData.put("x", player.getX());
+					playerData.put("y", player.getY());
+					playerData.put("id", playerId);
+					playerData.put("roomCode", roomCode);
+					socket.emit("playerMoved", playerData);
+				}
+				if(cueBall != null && cueBall.hasMoved()) {
+					cueballData.put("x", cueBall.getX());
+					cueballData.put("y", cueBall.getY());
+					cueballData.put("id", cueballId);
+					System.out.println("Sending cueballMoved: " + cueballData.toString());
+					socket.emit("cueballMoved", cueballData);
+				}
 
 			} catch (JSONException e) {
 				Gdx.app.log("SocketIO", "Error sending update data");
 			}
-			timer = 0; // Reset timer after sending the update
+
+
+			timer = 0;
 		}
 	}
 }
+
+
+
+
 
