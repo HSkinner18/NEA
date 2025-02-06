@@ -32,6 +32,7 @@ import java.util.Scanner;
 public class Main extends ApplicationAdapter {
 
 	private final float UPDATE_TIME = 1 / 120f;
+	private boolean cueballUpdatedByServer = false;
 	float timer;
 
 	Scanner s = new Scanner(System.in);
@@ -736,14 +737,13 @@ public class Main extends ApplicationAdapter {
 	}
 
 	public void configSocketEvents() {
-
 		socket.on(Socket.EVENT_CONNECT, new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
 				Gdx.app.log("SocketIO", "Connected");
 				player = new Player(0, 0, 50, 0, 0, Color.BLUE);
 				cueBall = new Ball(300, 500, 15f, 0, 0, false, Color.WHITE);
-
+				cueballs.put("cueball", cueBall); // Add cueBall to the map
 			}
 		}).on("socketID", new Emitter.Listener() {
 			@Override
@@ -751,10 +751,8 @@ public class Main extends ApplicationAdapter {
 				JSONObject data = (JSONObject) args[0];
 				try {
 					playerId = data.getString("id");
-					cueballId = ("cueball");
 					Gdx.app.log("SocketIO", "My ID: " + playerId);
 					players.put(playerId, player);
-					cueballs.put(cueballId, cueBall);
 				} catch (JSONException e) {
 					Gdx.app.log("SocketIO", "Error getting ID");
 				}
@@ -767,7 +765,7 @@ public class Main extends ApplicationAdapter {
 					String playerId = data.getString("id");
 					Gdx.app.log("SocketIO", "New Player Connect: " + playerId);
 
-					if(!(players.containsValue(playerId))) {
+					if (!players.containsKey(playerId)) {
 						players.put(playerId, new Player(0, 0, 50, 0, 0, Color.CORAL));
 					}
 				} catch (JSONException e) {
@@ -799,6 +797,7 @@ public class Main extends ApplicationAdapter {
 						players.get(playerId).setY(y.floatValue());
 					}
 				} catch (JSONException e) {
+					Gdx.app.log("SocketIO", "Error parsing playerMoved data");
 				}
 			}
 		}).on("getPlayers", new Emitter.Listener() {
@@ -814,18 +813,17 @@ public class Main extends ApplicationAdapter {
 						coopPlayer.setX(position.x);
 						coopPlayer.setY(position.y);
 
-						if(!(players.containsValue(playerId))) {
+						if (!players.containsKey(objects.getJSONObject(i).getString("id"))) {
 							players.put(objects.getJSONObject(i).getString("id"), coopPlayer);
 						}
 					}
 				} catch (JSONException e) {
+					Gdx.app.log("SocketIO", "Error fetching players");
 				}
 			}
 		}).on("cueballMoved", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
-
-				System.out.println("sendCueballMoved() function was called!");
 				JSONObject cueballData = (JSONObject) args[0];
 				try {
 					String cueballId = cueballData.getString("id");
@@ -833,33 +831,30 @@ public class Main extends ApplicationAdapter {
 					Double y = cueballData.getDouble("y");
 
 					if (cueballs.containsKey(cueballId)) {
+						cueballUpdatedByServer = true;
 						cueBall.setX(x.floatValue());
 						cueBall.setY(y.floatValue());
 					} else {
 						System.out.println("Cueball with ID " + cueballId + " not found!");
 					}
 
-
 					System.out.println("Received cueballMoved: " + cueballData.toString());
-
-
 				} catch (JSONException e) {
 					System.err.println("Error parsing cueballMoved data: " + e.getMessage());
 				}
 			}
-		}).on("getCueballs", new Emitter.Listener() {
+
+			}).on("getCueballs", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
 				JSONObject data = (JSONObject) args[0];
 				try {
-					for (int i = 0; i < data.length(); i++) {
+					double x = data.getDouble("x");
+					double y = data.getDouble("y");
 
-						double x = data.getDouble("x");
-						double y = data.getDouble("y");
-
-						cueBall.setX((float) x);
-						cueBall.setY((float) y);
-					}
+					cueBall.setX((float) x);
+					cueBall.setY((float) y);
+					cueballs.put("cueball", cueBall); // Add cueBall to the map here as well
 				} catch (JSONException e) {
 					Gdx.app.log("SocketIO", "Error fetching cueballs");
 				}
@@ -910,7 +905,6 @@ public class Main extends ApplicationAdapter {
 			JSONObject cueballData = new JSONObject();
 
 			try {
-
 				if (player != null && player.hasMoved()) {
 					playerData.put("x", player.getX());
 					playerData.put("y", player.getY());
@@ -918,18 +912,23 @@ public class Main extends ApplicationAdapter {
 					playerData.put("roomCode", roomCode);
 					socket.emit("playerMoved", playerData);
 				}
-				if(cueBall != null && cueBall.hasMoved()) {
-					cueballData.put("x", cueBall.getX());
-					cueballData.put("y", cueBall.getY());
-					cueballData.put("id", cueballId);
-					System.out.println("Sending cueballMoved: " + cueballData.toString());
-					socket.emit("cueballMoved", cueballData);
+
+				if (cueBall != null && cueBall.hasMoved()) {
+					if (!cueballUpdatedByServer) {
+						cueballData.put("x", cueBall.getX());
+						cueballData.put("y", cueBall.getY());
+						cueballData.put("id", cueballId);
+						cueballData.put("roomCode", roomCode);
+						System.out.println("Sending cueballMoved: " + cueballData.toString());
+						socket.emit("cueballMoved", cueballData);
+					} else {
+						cueballUpdatedByServer = false; // Reset the flag
+					}
 				}
 
 			} catch (JSONException e) {
 				Gdx.app.log("SocketIO", "Error sending update data");
 			}
-
 
 			timer = 0;
 		}
