@@ -7,11 +7,9 @@ server.listen(8080, function(){
     console.log("Server is now running...");
 });
 
-// Handle client connections
 io.on('connection', function(socket) {
     console.log("Player Connected!");
 
-    // Player movement handler
     socket.on('playerMoved', function(data) {
         let roomCode = data.roomCode;
         data.id = socket.id;
@@ -30,7 +28,6 @@ io.on('connection', function(socket) {
         }
     });
 
-    // Cue ball movement handler
    socket.on('cueballMoved', function(data) {
     console.log("Received cueballMoved event", data);
 
@@ -47,7 +44,6 @@ io.on('connection', function(socket) {
         return;
     }
 
-    // Attempt to access cueball's properties
     try {
         room.cueball.x = data.x;
         room.cueball.y = data.y;
@@ -64,6 +60,37 @@ io.on('connection', function(socket) {
     } catch (error) {
         console.error("Error updating cueball position:", error);
     }
+
+    socket.on('ballsMoved', function(data){
+		console.log("Received cueballMoved event", data);
+
+		let roomCode = data.roomCode;
+    	let room = gameRooms[roomCode];
+
+    	if (!room) {
+        	console.error("Room not found:", roomCode);
+        	return;
+    	}
+    	if (!room.cueball) {
+        	console.error("Cueball not initialized in room:", roomCode);
+        	return;
+    	}
+
+    	try {
+        	room.ball.x = data.x;
+        	room.ball.y = data.y;
+
+        	let ballData = {
+            	id: "ball",
+	            x: ball.x,
+	            y: ball.y,
+	            roomCode: roomCode
+        	};
+        	socket.broadcast.to(roomCode).emit('ballMoved', ballData);
+        }catch (error) {
+        console.error("Error updating ball position:", error);
+    }
+    })
 });
 
     // Create a new game room
@@ -71,9 +98,13 @@ io.on('connection', function(socket) {
     let roomCode = generateRoomCode();
     gameRooms[roomCode] = {
         players: [],
-        cueball: { // Ensure lowercase and correct initialization
+        cueball: { 
             x: 100,
             y: 200
+        }
+        ball: {
+        	x: 100,
+        	y: 200
         }
     };
     socket.join(roomCode);
@@ -94,14 +125,15 @@ socket.on('joinGame', function(roomCode, callback) {
 
         console.log(`Player ${socket.id} joined room ${roomCode}`);
 
-        // Send existing players to the new player
+       
         let playersToSend = gameRooms[roomCode].players.filter(p => p.id !== socket.id);
         socket.emit('getPlayers', playersToSend);
 
-        // Send the current cue ball state to the new player
+        
         socket.emit('getCueballs', gameRooms[roomCode].cueball);
 
-        // Notify other players about the new player
+        socket.emit('getBalls', gameRooms[roomCode].ball)
+        
         socket.broadcast.to(roomCode).emit('newPlayer', {
             id: socket.id,
             x: newPlayer.x,
