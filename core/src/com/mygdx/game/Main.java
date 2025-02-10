@@ -96,14 +96,14 @@ public class Main extends ApplicationAdapter {
 		ballSet = new HashMap<String, Ball>();
 
 
-		sound = Gdx.audio.newSound((Gdx.files.internal("BallNoise.mp3")));
-		music = Gdx.audio.newSound((Gdx.files.internal("BackgroundMusic.mp3")));
-		ambiance = Gdx.audio.newSound((Gdx.files.internal("AmbientPub.mp3")));
+		//sound = Gdx.audio.newSound((Gdx.files.internal("BallNoise.mp3")));
+		//music = Gdx.audio.newSound((Gdx.files.internal("BackgroundMusic.mp3")));
+		//ambiance = Gdx.audio.newSound((Gdx.files.internal("AmbientPub.mp3")));
 
-		music.loop();
+		//music.loop();
 
 
-		ambiance.loop(1f);
+		//ambiance.loop(1f);
 
 
 		// start of buttons
@@ -123,12 +123,12 @@ public class Main extends ApplicationAdapter {
 
 		root.row();
 		root.defaults().reset();
-		TextButton join = new TextButton("Join", skin);
+		final TextButton join = new TextButton("Join", skin);
 		root.add(join).spaceBottom(50).width(750).height(100);
 
 		root.row();
 		root.defaults().reset();
-		TextField codeInput = new TextField("", skin);
+		final TextField codeInput = new TextField("", skin);
 		root.add(codeInput).spaceBottom(50).width(200).height(25);
 
 
@@ -150,15 +150,13 @@ public class Main extends ApplicationAdapter {
 		join.addListener(new ClickListener() {
 			public void clicked(InputEvent event, float x, float y) {
 				joinGame(codeInput.getText());
-					clicked = true;
-					join.remove();
+				clicked = true;
+				join.remove();
 			}
 		});
 
 
 		//end of buttons
-
-
 
 
 		sr = new ShapeRenderer();
@@ -358,7 +356,7 @@ public class Main extends ApplicationAdapter {
 			for (int i = 0; i < 15; i++) {
 				for (int j = i + 1; j < 15; j++) {
 					if (checkBallCollision(balls[i], balls[j])) {
-						sound.play(2f);
+						//sound.play(2f);
 
 						float relativeVelX = balls[j].getxVel() - balls[i].getxVel();
 						float relativeVelY = balls[j].getyVel() - balls[i].getyVel();
@@ -388,7 +386,7 @@ public class Main extends ApplicationAdapter {
 
 			for (int i = 0; i < 15; i++) {
 				if (checkBallCollision(balls[i], cueBall)) {
-					sound.play(2f);
+					//sound.play(2f);
 
 					float relativeVelX = cueBall.getxVel() - balls[i].getxVel();
 					float relativeVelY = cueBall.getyVel() - balls[i].getyVel();
@@ -503,9 +501,6 @@ public class Main extends ApplicationAdapter {
 	}
 
 
-
-
-
 	public void potBall() {
 		for (int i = 0; i < 6; i++) {
 			for (int j = 0; j < 15; j++) {
@@ -522,11 +517,7 @@ public class Main extends ApplicationAdapter {
 		}
 
 
-
 	}
-
-
-
 
 
 	public boolean checkBallsStationary() {
@@ -720,34 +711,37 @@ public class Main extends ApplicationAdapter {
 
 				balls = new Ball[15];
 
-				float startX = table.getX() + table.getW() * 0.75f;
-				float startY = table.getY() + (float) table.getH() / 2;
+				if (table != null) {
 
-				float ballRadius = 15f;
-				float rowSpacing = (float) (ballRadius * Math.sqrt(3));
+					float startX = table.getX() + table.getW() * 0.75f;
+					float startY = table.getY() + (float) table.getH() / 2;
 
-				int ballIndex = 0;
+					float ballRadius = 15f;
+					float rowSpacing = (float) (ballRadius * Math.sqrt(3));
 
-				for (int row = 0; row < 5; row++) {
-					float rowX = startX + row * ballRadius;
+					int ballIndex = 0;
 
-					float rowY = startY - (row * rowSpacing / 2);
+					for (int row = 0; row < 5; row++) {
+						float rowX = startX + row * ballRadius;
+
+						float rowY = startY - (row * rowSpacing / 2);
 
 
-					for (int i = 0; i <= row; i++) {
-						if (ballIndex % 2 == 0) {
-							balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.YELLOW);
-							ballSet.put("ball", balls[ballIndex]);
-							ballIndex++;
-						} else {
-							balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.RED);
-							ballIndex++;
+						for (int i = 0; i <= row; i++) {
+							if (ballIndex % 2 == 0) {
+								balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.YELLOW);
+								ballSet.put("ball", balls[ballIndex]);
+								ballIndex++;
+							} else {
+								balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.RED);
+								ballIndex++;
+							}
 						}
 					}
-				}
 
-				for(int i = 0; i< balls.length; i++){
-					ballSet.put("ball", balls[i]);
+					for (int i = 0; i < balls.length; i++) {
+						ballSet.put("ball", balls[i]);
+					}
 				}
 			}
 		}).on("socketID", new Emitter.Listener() {
@@ -867,18 +861,41 @@ public class Main extends ApplicationAdapter {
 		}).on("ballsMoved", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
-				JSONObject ballData = (JSONObject) args[0];
-				try{
-					String ballId = ballData.getString("id");
-					Double x = ballData.getDouble("x");
-					Double y = ballData.getDouble("y");
+				JSONObject data = (JSONObject) args[0];
+				try {
 
-					if (ballSet.get(ballId) != null) {
-						ballUpdatedByServer = true;
-						ballSet.get(ballId).setX(x.floatValue());
-						ballSet.get(ballId).setY(y.floatValue());
+
+					if (balls != null) {
+
+						JSONArray ballsArray = data.getJSONArray("balls");
+
+						for (int i = 0; i < balls.length; i++) {
+							if (balls[i] != null && balls[i].hasMoved()) {
+								if (!ballUpdatedByServer) {
+									JSONObject ballData = new JSONObject();
+									ballData.put("x", balls[i].getX());
+									ballData.put("y", balls[i].getY());
+									ballData.put("id", "ball" + i); // Use unique ID for each ball
+									ballsArray.put(ballData); // Add ball data to array
+									ballUpdatedByServer = false;
+								}
+							}
+						}
+
+						if (ballsArray.length() > 0) {
+							JSONObject ballsData = new JSONObject();
+							ballsData.put("roomCode", roomCode);
+							ballsData.put("balls", ballsArray);
+
+							//System.out.println("Sending ballsMoved: " + ballsData.toString());
+							socket.emit("ballsMoved", ballsData); // Emit all balls data
+						} else {
+							System.err.println("No balls to send!");
+						}
+
+						ballUpdatedByServer = false;
 					}
-				}catch (JSONException e) {
+				} catch (JSONException e) {
 					System.err.println("Error parsing BallsMoved data: " + e.getMessage());
 				}
 			}
@@ -886,8 +903,8 @@ public class Main extends ApplicationAdapter {
 			@Override
 			public void call(Object... args) {
 				JSONArray objects1 = (JSONArray) args[0];
-				try{
-					for(int i = 0; i < objects1.length(); i++){
+				try {
+					for (int i = 0; i < objects1.length(); i++) {
 
 						double x = ((Double) objects1.getJSONObject(i).getDouble("x")).floatValue();
 						double y = ((Double) objects1.getJSONObject(i).getDouble("y")).floatValue();
@@ -896,7 +913,7 @@ public class Main extends ApplicationAdapter {
 						balls[i].setY((float) y);
 						ballSet.put("ball", balls[i]);
 					}
-				}catch (JSONException e){
+				} catch (JSONException e) {
 
 				}
 
@@ -915,7 +932,7 @@ public class Main extends ApplicationAdapter {
 		});
 	}
 
-	public void joinGame(String code) {
+	public void joinGame(final String code) {
 		socket.emit("joinGame", code, new Ack() {
 			@Override
 			public void call(Object... args) {
@@ -943,11 +960,14 @@ public class Main extends ApplicationAdapter {
 		timer += dt;
 
 		if (timer > UPDATE_TIME) {
+
 			JSONObject playerData = new JSONObject();
 			JSONObject cueballData = new JSONObject();
-			JSONObject ballData = new JSONObject();
 
 			try {
+				JSONArray ballsArray = new JSONArray();
+
+
 				if (player != null && player.hasMoved()) {
 					playerData.put("x", player.getX());
 					playerData.put("y", player.getY());
@@ -966,33 +986,49 @@ public class Main extends ApplicationAdapter {
 						socket.emit("cueballMoved", cueballData);
 					} else {
 						cueballUpdatedByServer = false; // Reset the flag
-					}
-				}
 
-				for(int i = 0; i<balls.length; i++){
-					if(balls[i] != null && balls[i].hasMoved()) {
-						if (!ballUpdatedByServer) {
-							ballData.put("x", balls[i].getX());
-							ballData.put("y", balls[i].getY());
-							ballData.put("id", ballId);
-							ballData.put("roomCode", roomCode);
-							System.out.println("Sending ballMoved: " + ballData.toString());
+
+						if (balls != null) {
+							for (int i = 0; i < balls.length; i++) {
+								if (balls[i] != null) {
+									//System.out.println("Ball " + i + " position: (" + balls[i].getX() + ", " + balls[i].getY() + ")");
+									if (balls[i].hasMoved()) {
+										JSONObject ballData = new JSONObject();
+										ballData.put("x", balls[i].getX());
+										ballData.put("y", balls[i].getY());
+										ballData.put("id", "ball" + i); // Use unique ID for each ball
+										ballsArray.put(ballData); // Add ball data to array
+										//System.out.println("Ball " + i + " has moved. Adding to ballsArray.");
+									} else {
+										//System.out.println("Ball " + i + " has not moved.");
+									}
+								}
+							}
+						} else {
+							System.err.println("Balls array is not initialized!");
 						}
-					}else{
-						ballUpdatedByServer = false;
+
+						if (ballsArray.length() > 0) {
+							JSONObject ballsData = new JSONObject();
+							ballsData.put("roomCode", roomCode);
+							ballsData.put("balls", ballsArray);
+
+							//System.out.println("Sending ballsMoved: " + ballsData.toString());
+							socket.emit("ballsMoved", ballsData); // Emit all balls data
+						} else {
+							//System.err.println("No balls to send!");
+						}
+
+						ballUpdatedByServer = false; // Reset the flag after sending data
 					}
+
+					timer = 0;
+
 				}
-
-			} catch (JSONException e) {
-				Gdx.app.log("SocketIO", "Error sending update data");
 			}
-
-			timer = 0;
+			catch(JSONException e){
+			Gdx.app.log("SocketIO", "Error sending update data");
+			}
 		}
 	}
 }
-
-
-
-
-
