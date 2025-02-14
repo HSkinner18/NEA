@@ -165,6 +165,38 @@ public class Main extends ApplicationAdapter {
 		sr2 = new ShapeRenderer();
 		table = new PoolTable(200, 175, 1100, 550, Color.GREEN);
 
+		balls = new Ball[15];
+
+		float startX = table.getX() + table.getW() * 0.75f;
+		float startY = table.getY() + (float) table.getH() / 2;
+
+		float ballRadius = 15f;
+		float rowSpacing = (float) (ballRadius * Math.sqrt(3));
+
+		int ballIndex = 0;
+
+		for (int row = 0; row < 5; row++) {
+			float rowX = startX + row * ballRadius;
+
+			float rowY = startY - (row * rowSpacing / 2);
+
+
+			for (int i = 0; i <= row; i++) {
+				if (ballIndex % 2 == 0) {
+					balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.YELLOW);
+					ballSet.put("ball", balls[ballIndex]);
+					ballIndex++;
+				} else {
+					balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.RED);
+					ballIndex++;
+				}
+			}
+		}
+
+		for(int i = 0; i< balls.length; i++){
+			ballSet.put("ball", balls[i]);
+		}
+
 
 		reboundLine = new ShotLine(0, 0, 0, 0, 3, Color.BLUE);
 
@@ -718,36 +750,11 @@ public class Main extends ApplicationAdapter {
 				cueBall = new Ball(300, 500, 15f, 0, 0, false, Color.WHITE);
 				cueballs.put("cueball", cueBall); // Add cueBall to the map
 
-				balls = new Ball[15];
 
-				float startX = table.getX() + table.getW() * 0.75f;
-				float startY = table.getY() + (float) table.getH() / 2;
-
-				float ballRadius = 15f;
-				float rowSpacing = (float) (ballRadius * Math.sqrt(3));
-
-				int ballIndex = 0;
-
-				for (int row = 0; row < 5; row++) {
-					float rowX = startX + row * ballRadius;
-
-					float rowY = startY - (row * rowSpacing / 2);
-
-
-					for (int i = 0; i <= row; i++) {
-						if (ballIndex % 2 == 0) {
-							balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.YELLOW);
-							ballSet.put("ball", balls[ballIndex]);
-							ballIndex++;
-						} else {
-							balls[ballIndex] = new Ball(rowX, rowY + i * rowSpacing, ballRadius, 0, 0, false, Color.RED);
-							ballIndex++;
-						}
+				if(balls != null) {
+					for (int i = 0; i < balls.length; i++) {
+						ballSet.put("ball" + i, balls[i]);
 					}
-				}
-
-				for(int i = 0; i< balls.length; i++){
-					ballSet.put("ball", balls[i]);
 				}
 			}
 		}).on("socketID", new Emitter.Listener() {
@@ -848,7 +855,6 @@ public class Main extends ApplicationAdapter {
 					System.err.println("Error parsing cueballMoved data: " + e.getMessage());
 				}
 			}
-
 		}).on("getCueballs", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
@@ -864,19 +870,21 @@ public class Main extends ApplicationAdapter {
 					Gdx.app.log("SocketIO", "Error fetching cueballs");
 				}
 			}
-		}).on("ballsMoved", new Emitter.Listener() {
+		}).on("ballMoved", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
 				JSONObject ballData = (JSONObject) args[0];
-				try{
+				try {
 					String ballId = ballData.getString("id");
 					Double x = ballData.getDouble("x");
 					Double y = ballData.getDouble("y");
 
-					if (ballSet.get(ballId) != null) {
+					if(ballSet.containsKey(ballId)){
 						ballUpdatedByServer = true;
 						ballSet.get(ballId).setX(x.floatValue());
 						ballSet.get(ballId).setY(y.floatValue());
+					} else {
+						System.out.println("Ball with ID " + cueballId + " not found!");
 					}
 				}catch (JSONException e) {
 					System.err.println("Error parsing BallsMoved data: " + e.getMessage());
@@ -885,21 +893,23 @@ public class Main extends ApplicationAdapter {
 		}).on("getBalls", new Emitter.Listener() {
 			@Override
 			public void call(Object... args) {
-				JSONArray objects1 = (JSONArray) args[0];
-				try{
-					for(int i = 0; i < objects1.length(); i++){
 
-						double x = ((Double) objects1.getJSONObject(i).getDouble("x")).floatValue();
-						double y = ((Double) objects1.getJSONObject(i).getDouble("y")).floatValue();
+				JSONArray objects = (JSONArray) args[0];
+				try {
+					for(int i = 0; i<ballSet.size(); i++) {
+						Vector2 position = new Vector2();
+						position.x = ((Double) objects.getJSONObject(i).getDouble("x")).floatValue();
+						position.y = ((Double) objects.getJSONObject(i).getDouble("y")).floatValue();
+						ballSet.get(i).setX(position.x);
+						ballSet.get(i).setY(position.y);
 
-						balls[i].setX((float) x);
-						balls[i].setY((float) y);
-						ballSet.put("ball", balls[i]);
+						if (!ballSet.containsKey(objects.getJSONObject(i).getString("id"))) {
+							ballSet.put(objects.getJSONObject(i).getString("id"), balls[i]);
+						}
 					}
-				}catch (JSONException e){
-
+				} catch (JSONException e) {
+					System.err.println(e.getMessage());
 				}
-
 			}
 		});
 	}
